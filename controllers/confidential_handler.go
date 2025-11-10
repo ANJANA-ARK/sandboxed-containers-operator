@@ -21,13 +21,9 @@ const (
 	ibmSENodeLabel    = "ibm.feature.node.kubernetes.io/se"
 
 	// RuntimeClass handlers for TEE
-	kataCCIntelHandler = "kata-tdx"
-	kataCCAmdHandler   = "kata-snp"
-	kataCCIbmHandler   = "kata-se"
-
-	// Extended resources for TEE
-	intelTDXExtendedResource = "tdx.intel.com/keys"
-	amdSNPExtendedResource   = "sev-snp.amd.com/esids"
+	kataCCIntelHandler = "kata-cc-intel"
+	kataCCAmdHandler   = "kata-cc-amd"
+	kataCCIbmHandler   = "kata-cc-ibm"
 )
 
 // When the feature is enabled, handleFeatureConfidential configures confidential computing support.
@@ -67,7 +63,7 @@ func (r *KataConfigOpenShiftReconciler) handleConfidentialPeerPods(state Feature
 		} else {
 			if state == Enabled {
 				// Create ImageConfigMap, if it doesn't exist already.
-				if err := ig.createImageConfigMapFromFile(r.kataConfig); err != nil {
+				if err := ig.createImageConfigMapFromFile(); err != nil {
 					return err
 				}
 
@@ -127,16 +123,8 @@ func (r *KataConfigOpenShiftReconciler) handleConfidentialBaremetal(state Featur
 			return err
 		}
 
-		// Determine extended resource based on TEE type
-		var kataCCRuntimeClassExtResOverhead string
-		if handler == kataCCIntelHandler {
-			kataCCRuntimeClassExtResOverhead = intelTDXExtendedResource
-		} else if handler == kataCCAmdHandler {
-			kataCCRuntimeClassExtResOverhead = amdSNPExtendedResource
-		}
-
 		// Create kata-cc runtime class restricted to the detected TEE subset
-		err = r.createRuntimeClass(kataCCRuntimeClassName, kataCCRuntimeClassCpuOverhead, kataCCRuntimeClassMemOverhead, kataCCRuntimeClassExtResOverhead, handler, nodeLabel)
+		err = r.createRuntimeClass(kataCCRuntimeClassName, kataCCRuntimeClassCpuOverhead, kataCCRuntimeClassMemOverhead, handler, nodeLabel)
 		if err != nil {
 			r.Log.Info("Error creating "+kataCCRuntimeClassName+" runtime class", "err", err)
 			return fmt.Errorf("Error creating "+kataCCRuntimeClassName+" runtime class: %w", err)
