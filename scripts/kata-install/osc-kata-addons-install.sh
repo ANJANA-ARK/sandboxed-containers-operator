@@ -14,24 +14,16 @@ source "${SCRIPT_DIR}/lib.sh"
 #######################################
 # Update provider-specific configuration file
 # Arguments:
-#   $1: provider name (se, tdx, snp, etc.)
-#   $2: kernel path (empty if not installed)
-#   $3: initrd path (empty if not installed)
+#   $1: kernel path (empty if not installed)
+#   $2: initrd path (empty if not installed)
 # Returns:
 #   0 on success
 #######################################
 update_provider_config() {
-    local provider="$1"
-    local kernel_path="$2"
-    local initrd_path="$3"
+    local kernel_path="$1"
+    local initrd_path="$2"
     
-    if [ -z "$provider" ]; then
-        echo "No provider specified, skipping config update"
-        return 0
-    fi
-    
-    # Construct provider-specific config filename
-    local config_file="/etc/kata-containers/kata-${provider}/configuration.toml"
+    local config_file="/etc/kata-containers/kata-se/configuration.toml"
     
     if [ ! -f "$config_file" ]; then
         echo "Warning: Configuration file not found: $config_file"
@@ -88,8 +80,6 @@ install_addons() {
     
     local kernel_src="${ADDON_KERNEL_PATH:-}"
     local initrd_src="${ADDON_INITRD_PATH:-}"
-    local provider="${ADDON_PROVIDER:-}"
-    local version="${ADDON_VERSION:-unknown}"
     
     # Standard installation directory
     local install_dir="/etc/kata-containers"
@@ -139,35 +129,10 @@ install_addons() {
     
     # Update configuration
     if [ -n "$kernel_installed" ] || [ -n "$initrd_installed" ]; then
-        update_provider_config "$provider" "$kernel_installed" "$initrd_installed"
+        update_provider_config "$kernel_installed" "$initrd_installed"
     fi
-    
-    # Store version
-    echo "$version" > "$install_dir/.addon-version"
     
     echo "Addon installation completed"
-    return 0
-}
-
-#######################################
-# Upgrade addon artifacts
-# Returns:
-#   0 on success
-#######################################
-upgrade_addons() {
-    local version_file="/usr/share/kata-containers/.addon-version"
-    local current_version="none"
-    local new_version="${ADDON_VERSION:-}"
-    
-    [ -f "$version_file" ] && current_version=$(cat "$version_file")
-    
-    if [ "$current_version" != "$new_version" ]; then
-        echo "Upgrading addons: $current_version -> $new_version"
-        install_addons
-    else
-        echo "Addons already at version: $current_version"
-    fi
-    
     return 0
 }
 
@@ -178,30 +143,20 @@ upgrade_addons() {
 #######################################
 uninstall_addons() {
     local install_dir="/etc/kata-containers"
-    local version_file="$install_dir/.addon-version"
-    
-    if [ ! -f "$version_file" ]; then
-        echo "No addons to uninstall"
-        return 0
-    fi
     
     echo "Uninstalling addon artifacts"
     
     local kernel_src="${ADDON_KERNEL_PATH:-}"
     local initrd_src="${ADDON_INITRD_PATH:-}"
-    local provider="${ADDON_PROVIDER:-}"
     
     # Remove installed artifacts
     [ -n "$kernel_src" ] && rm -f "$install_dir/$(basename "$kernel_src")"
     [ -n "$initrd_src" ] && rm -f "$install_dir/$(basename "$initrd_src")"
-    rm -f "$version_file"
     
     # Restore config backup
-    if [ -n "$provider" ]; then
-        local config_file="/etc/kata-containers/kata-${provider}/configuration.toml"
-        local backup=$(ls -t "${config_file}.backup-"* 2>/dev/null | head -1)
-        [ -n "$backup" ] && [ -f "$backup" ] && cp "$backup" "$config_file"
-    fi
+    local config_file="/etc/kata-containers/kata-se/configuration.toml"
+    local backup=$(ls -t "${config_file}.backup-"* 2>/dev/null | head -1)
+    [ -n "$backup" ] && [ -f "$backup" ] && cp "$backup" "$config_file"
     
     echo "Addon artifacts uninstalled"
     return 0
@@ -214,14 +169,11 @@ case "$action" in
     install)
         install_addons
         ;;
-    upgrade)
-        upgrade_addons
-        ;;
     uninstall)
         uninstall_addons
         ;;
     *)
-        echo "Usage: $0 {install|upgrade|uninstall}"
+        echo "Usage: $0 {install|uninstall}"
         exit 1
         ;;
 esac

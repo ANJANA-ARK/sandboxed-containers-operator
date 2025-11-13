@@ -2,12 +2,12 @@ package controllers
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -694,10 +694,6 @@ func (r *KataConfigOpenShiftReconciler) getAddonEnvVars() []corev1.EnvVar {
 	}, configMap)
 
 	if err != nil {
-		if errors.IsNotFound(err) {
-			// ConfigMap not found - addon not configured
-			return nil
-		}
 		r.Log.Error(err, "Failed to get addon ConfigMap")
 		return nil
 	}
