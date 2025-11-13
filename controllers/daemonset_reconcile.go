@@ -715,15 +715,6 @@ func (r *KataConfigOpenShiftReconciler) getAddonEnvVars() []corev1.EnvVar {
 		},
 	}
 
-	// Add optional provider
-	if provider, exists := configMap.Data["provider"]; exists && provider != "" {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "ADDON_PROVIDER",
-			Value: provider,
-		})
-		r.Log.Info("Addon provider configured", "provider", provider)
-	}
-
 	// Add optional kernel path
 	if kernelPath, exists := configMap.Data["kernelPath"]; exists && kernelPath != "" {
 		envVars = append(envVars, corev1.EnvVar{
@@ -739,18 +730,6 @@ func (r *KataConfigOpenShiftReconciler) getAddonEnvVars() []corev1.EnvVar {
 			Value: initrdPath,
 		})
 	}
-
-	// Add version for upgrade tracking
-	version, exists := configMap.Data["version"]
-	if !exists || version == "" {
-		// Extract version from image tag if not provided
-		version = extractVersionFromImage(addonImage)
-	}
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "ADDON_VERSION",
-		Value: version,
-	})
-
 	return envVars
 }
 
