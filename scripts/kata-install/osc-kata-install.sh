@@ -244,7 +244,7 @@ main() {
                   mkdir -p /host/tmp/scripts
                   cp /scripts/* /host/tmp/scripts/
                   chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh uninstall"
-                fi
+          	fi
 
 		uninstall
 		;;
