@@ -165,7 +165,13 @@ uninstall() {
 	set_status_uninstalling
 
 	# Uninstall extensions from the node
-	chroot /host /bin/bash -c "rpm-ostree uninstall $PACKAGES"
+	for pkg in $PACKAGES; do
+		if rpm-ostree status | grep -q "LayeredPackages.*$pkg"; then
+			chroot /host /bin/bash -c "rpm-ostree uninstall $pkg"
+		else
+			echo "Skipping $pkg (not layered)"
+		fi
+	done
 
 	# Wait again: rpm-ostree uninstall stages changes, requiring a reboot
 	wait_for_reboot_clear
