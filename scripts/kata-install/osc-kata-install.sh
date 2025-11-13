@@ -165,13 +165,16 @@ uninstall() {
 	set_status_uninstalling
 
 	# Uninstall extensions from the node
+	# Uninstall extensions from the node
 	for pkg in $PACKAGES; do
-		if rpm-ostree status | grep -q "LayeredPackages.*$pkg"; then
-			chroot /host /bin/bash -c "rpm-ostree uninstall $pkg"
-		else
-			echo "Skipping $pkg (not layered)"
-		fi
+    		if chroot /host /bin/bash -c "rpm-ostree status" | grep -q "LayeredPackages.*$pkg"; then
+        		echo "Uninstalling $pkg..."
+        		chroot /host /bin/bash -c "rpm-ostree uninstall $pkg"
+    		else
+        		echo "Skipping $pkg (not layered)"
+   		fi
 	done
+
 
 	# Wait again: rpm-ostree uninstall stages changes, requiring a reboot
 	wait_for_reboot_clear
@@ -235,8 +238,13 @@ main() {
 
 		#/osc-configs-script.sh "$action"
 
-        # Call addon uninstaller if configured
-		[ -n "${ADDON_IMAGE:-}" ] && chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh uninstall"
+        	# Call addon uninstaller if configured
+		if [ -n "${ADDON_IMAGE:-}" ]; then
+                  echo "Running osc-kata-addons-install.sh inside the host chroot..."
+                  mkdir -p /host/tmp/scripts
+                  cp /scripts/* /host/tmp/scripts/
+                  chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh uninstall"
+                fi
 
 		uninstall
 		;;
