@@ -165,15 +165,14 @@ uninstall() {
 	set_status_uninstalling
 
 	# Uninstall extensions from the node
-	# Uninstall extensions from the node
-	for pkg in $PACKAGES; do
-    		if chroot /host /bin/bash -c "rpm-ostree status" | grep -q "LayeredPackages.*$pkg"; then
-        		echo "Uninstalling $pkg..."
-        		chroot /host /bin/bash -c "rpm-ostree uninstall $pkg"
-    		else
-        		echo "Skipping $pkg (not layered)"
-   		fi
-	done
+	#for pkg in $PACKAGES; do
+    	#	if chroot /host /bin/bash -c "rpm-ostree status"; then
+        #		echo "Uninstalling $pkg..."
+    	#	else
+        #		echo "Skipping $pkg (not layered)"
+   	#	fi
+	#done 
+	chroot /host /bin/bash -c "rpm-ostree uninstall kata-containers qemu-kvm-core virtiofsd"
 
 
 	# Wait again: rpm-ostree uninstall stages changes, requiring a reboot

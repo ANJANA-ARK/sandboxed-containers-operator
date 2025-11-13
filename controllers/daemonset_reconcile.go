@@ -34,7 +34,7 @@ const (
 	rhelCoreOsExtensionsImageName = "rhel-coreos-extensions"
 	cliImageName                  = "cli"
 
-	daemonSetImage = "quay.io/cadapa/deamonset:s390x-18"
+	daemonSetImage = "quay.io/cadapa/deamonset:s390x-24"
 )
 
 // KataInstallationDaemonSetState defines the possible states of the Kata installation DaemonSet.
