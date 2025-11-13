@@ -249,7 +249,7 @@ main() {
 		uninstall
 		;;
 	*)
-        echo "Usage: $0 {install|upgrade|uninstall}"
+        echo "Usage: $0 {install|uninstall}"
 		exit 1
 		;;
 	esac
