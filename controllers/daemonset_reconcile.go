@@ -3,10 +3,12 @@ package controllers
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -582,6 +584,35 @@ func (r *KataConfigOpenShiftReconciler) daemonSetForKataInstall(action KataDaemo
 	volumeMounts := r.volumeMountsForRegistries()
 	volumes := r.volumesForRegistries()
 
+	kataInstallEnv := []corev1.EnvVar{
+		{
+			Name: "NODE_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "spec.nodeName",
+				},
+			},
+		},
+		{
+			Name:  "EXTENSION_IMAGE",
+			Value: extensionImageString,
+		},
+		{
+			Name:  "CLI_IMAGE",
+			Value: cliImageString,
+		},
+		{
+			Name:  "NODE_LABEL",
+			Value: kataInstallationDaemonSetLabel,
+		},
+	}
+
+	// Add addon environment variables if ConfigMap exists
+	addonEnvVars := r.getAddonEnvVars()
+	if addonEnvVars != nil {
+		kataInstallEnv = append(kataInstallEnv, addonEnvVars...)
+	}
+
 	return &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -624,28 +655,7 @@ func (r *KataConfigOpenShiftReconciler) daemonSetForKataInstall(action KataDaemo
 							Command:      []string{"/bin/bash", "/scripts/osc-kata-install.sh"},
 							Args:         []string{string(action)},
 							VolumeMounts: volumeMounts,
-							Env: []corev1.EnvVar{
-								{
-									Name: "NODE_NAME",
-									ValueFrom: &corev1.EnvVarSource{
-										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "spec.nodeName",
-										},
-									},
-								},
-								{
-									Name:  "EXTENSION_IMAGE",
-									Value: extensionImageString,
-								},
-								{
-									Name:  "CLI_IMAGE",
-									Value: cliImageString,
-								},
-								{
-									Name:  "NODE_LABEL",
-									Value: kataInstallationDaemonSetLabel,
-								},
-							},
+							Env:          kataInstallEnv, // MODIFIED: Use the env array with addons
 						},
 						{
 							Name:            "set-log-level",
@@ -670,6 +680,73 @@ func (r *KataConfigOpenShiftReconciler) daemonSetForKataInstall(action KataDaemo
 			},
 		},
 	}, nil
+}
+
+// getAddonEnvVars retrieves addon configuration from ConfigMap and returns environment variables
+// Returns nil if ConfigMap doesn't exist or addon is not configured
+func (r *KataConfigOpenShiftReconciler) getAddonEnvVars() []corev1.EnvVar {
+	ctx := context.Background()
+
+	// Try to get the addon ConfigMap
+	configMap := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      "kata-addon-artifacts",
+		Namespace: OperatorNamespace,
+	}, configMap)
+
+	if err != nil {
+		r.Log.Error(err, "Failed to get addon ConfigMap")
+		return nil
+	}
+
+	// Check if addon image is configured
+	addonImage, exists := configMap.Data["addonImage"]
+	if !exists || addonImage == "" {
+		// No addon image configured
+		return nil
+	}
+
+	r.Log.Info("Addon artifacts configured", "image", addonImage)
+
+	// Build environment variables
+	envVars := []corev1.EnvVar{
+		{
+			Name:  "ADDON_IMAGE",
+			Value: addonImage,
+		},
+	}
+
+	// Add optional kernel path
+	if kernelPath, exists := configMap.Data["kernelPath"]; exists && kernelPath != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "ADDON_KERNEL_PATH",
+			Value: kernelPath,
+		})
+	}
+
+	// Add optional initrd path
+	if initrdPath, exists := configMap.Data["initrdPath"]; exists && initrdPath != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "ADDON_INITRD_PATH",
+			Value: initrdPath,
+		})
+	}
+  
+	return envVars
+}
+
+// extractVersionFromImage extracts version tag from container image reference
+func extractVersionFromImage(image string) string {
+	// Split by colon to get tag
+	parts := strings.Split(image, ":")
+	if len(parts) > 1 {
+		tag := parts[len(parts)-1]
+		// Don't use sha256 digest as version
+		if !strings.HasPrefix(tag, "sha256:") {
+			return tag
+		}
+	}
+	return "latest"
 }
 
 func (r *KataConfigOpenShiftReconciler) volumesForRegistries() []corev1.Volume {

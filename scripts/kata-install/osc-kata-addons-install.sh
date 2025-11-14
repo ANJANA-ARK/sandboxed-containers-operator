@@ -1,0 +1,178 @@
+#!/bin/bash
+#
+# osc-kata-addons-install.sh
+# Install addon artifacts (kernel/initrd) from container images
+# Reuses functions from lib.sh
+#
+
+set -e
+
+# Source the shared library functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib.sh"
+
+#######################################
+# Update provider-specific configuration file
+# Arguments:
+#   $1: kernel path (empty if not installed)
+#   $2: initrd path (empty if not installed)
+# Returns:
+#   0 on success
+#######################################
+update_provider_config() {
+    local kernel_path="$1"
+    local initrd_path="$2"
+    
+    local config_file="/etc/kata-containers/kata-se/configuration.toml"
+    
+    if [ ! -f  chroot /host "$config_file" ]; then
+        echo "Warning: Configuration file not found: $config_file"
+        return 1
+    fi
+    
+    echo "Updating configuration: $config_file"
+    
+    # Backup config
+    chroot /host cp "$config_file" "${config_file}.backup-$(date +%s)"
+    
+    # Update kernel if provided
+    if [ -n "$kernel_path" ]; then
+        chroot /host sed -i "s|^\(kernel[[:space:]]*=[[:space:]]*\)\".*\"|\1\"$kernel_path\"|g" "$config_file"
+        echo "  Updated kernel: $kernel_path"
+    fi
+    
+    # Update initrd if provided
+    if [ -n "$initrd_path" ]; then
+        # Comment out image line (mutually exclusive with initrd)
+        chroot /host sed -i 's|^\(image[[:space:]]*=\)|# \1|g' "$config_file"
+        
+        # Update or add initrd line
+        if chroot /host grep -q "^initrd[[:space:]]*=" "$config_file"; then
+            chroot /host sed -i "s|^\(initrd[[:space:]]*=[[:space:]]*\)\".*\"|\1\"$initrd_path\"|g" "$config_file"
+        else
+            # Add after commented image line or kernel line
+            chroot /host sed -i "/^# image[[:space:]]*=/a initrd = \"$initrd_path\"" "$config_file"
+            if ! chroot /host grep -q "^initrd[[:space:]]*=" "$config_file"; then
+                chroot /host sed -i "/^kernel[[:space:]]*=/a initrd = \"$initrd_path\"" "$config_file"
+            fi
+        fi
+        echo "  Updated initrd: $initrd_path"
+    fi
+
+    return 0
+}
+
+#######################################
+# Install addon artifacts
+# Reads from environment variables
+# Returns:
+#   0 on success
+#######################################
+install_addons() {
+    local addon_image="${ADDON_IMAGE:-}"
+    
+    if [ -z "$addon_image" ]; then
+        echo "No addon image configured"
+        return 0
+    fi
+    
+    echo "Installing addon artifacts from: $addon_image"
+    
+    local kernel_src="${ADDON_KERNEL_PATH:-}"
+    local initrd_src="${ADDON_INITRD_PATH:-}"
+    
+    # Standard installation directory
+    local install_dir="/host/etc/kata-containers"
+    local temp_dir="/tmp/kata-addons-$$"
+    local auth_file="/tmp/regauth/auth.json"
+    
+    mkdir -p "$install_dir"
+    mkdir -p "$temp_dir"
+    
+    local kernel_installed=""
+    local initrd_installed=""
+    
+    # Extract and install kernel
+    if [ -n "$kernel_src" ]; then
+        echo "Extracting kernel from: $kernel_src"
+        
+        # Reuse extract_container_image from lib.sh
+        if extract_container_image "$addon_image" "$kernel_src" "$temp_dir" "$auth_file"; then
+            local kernel_file=$(basename "$kernel_src")
+            if [ -f "$temp_dir/$kernel_file" ]; then
+                kernel_installed="$install_dir/$kernel_file"
+                cp "$temp_dir/$kernel_file" "$kernel_installed"
+                chmod 644 "$kernel_installed"
+                echo "Kernel installed: $kernel_installed"
+            fi
+        fi
+    fi
+    
+    # Extract and install initrd
+    if [ -n "$initrd_src" ]; then
+        echo "Extracting initrd from: $initrd_src"
+        
+        # Reuse extract_container_image from lib.sh
+        if extract_container_image "$addon_image" "$initrd_src" "$temp_dir" "$auth_file"; then
+            local initrd_file=$(basename "$initrd_src")
+            if [ -f "$temp_dir/$initrd_file" ]; then
+                initrd_installed="$install_dir/$initrd_file"
+                cp "$temp_dir/$initrd_file" "$initrd_installed"
+                chmod 644 "$initrd_installed"
+                echo "Initrd installed: $initrd_installed"
+            fi
+        fi
+    fi
+    
+    # Cleanup
+    rm -rf "$temp_dir"
+    
+    # Update configuration
+    if [ -n "$kernel_installed" ] || [ -n "$initrd_installed" ]; then
+        update_provider_config "$kernel_installed" "$initrd_installed"
+    fi
+    
+    echo "Addon installation completed"
+    return 0
+}
+
+#######################################
+# Uninstall addon artifacts
+# Returns:
+#   0 on success
+#######################################
+uninstall_addons() {
+    local install_dir="/etc/kata-containers"
+    echo "Uninstalling addon artifacts"
+    
+    local kernel_src="${ADDON_KERNEL_PATH:-}"
+    local initrd_src="${ADDON_INITRD_PATH:-}"
+    
+    # Remove installed artifacts
+    [ -n "$kernel_src" ] && chroot /host rm -f "$install_dir/$(basename "$kernel_src")"
+    [ -n "$initrd_src" ] && chroot /host rm -f "$install_dir/$(basename "$initrd_src")"
+     
+    # Restore config backup
+    local config_file="/etc/kata-containers/kata-se/configuration.toml"
+    local backup=$(ls -t "${config_file}.backup-"* 2>/dev/null | head -1)
+    [ -n "$backup" ] && [ -f "$backup" ] && chroot /host cp "$backup" "$config_file"
+    
+    echo "Addon artifacts uninstalled"
+    return 0
+}
+
+# Main execution
+action=${1:-install}
+
+case "$action" in
+    install)
+        install_addons
+        ;;
+    uninstall)
+        uninstall_addons
+        ;;
+    *)
+        echo "Usage: $0 {install|uninstall}"
+        exit 1
+        ;;
+esac
