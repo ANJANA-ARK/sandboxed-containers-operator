@@ -131,7 +131,6 @@ install_addons() {
     if [ -n "$kernel_installed" ] || [ -n "$initrd_installed" ]; then
         update_provider_config "$kernel_installed" "$initrd_installed"
     fi
-    
     echo "Addon installation completed"
     return 0
 }
@@ -147,7 +146,6 @@ uninstall_addons() {
     
     local kernel_src="${ADDON_KERNEL_PATH:-}"
     local initrd_src="${ADDON_INITRD_PATH:-}"
-    
     # Remove installed artifacts
     [ -n "$kernel_src" ] && chroot /host rm -f "$install_dir/$(basename "$kernel_src")"
     [ -n "$initrd_src" ] && chroot /host rm -f "$install_dir/$(basename "$initrd_src")"

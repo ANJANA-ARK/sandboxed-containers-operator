@@ -226,6 +226,12 @@ main() {
 
 		sleep infinity
 		;;
+	upgrade)
+	        # Call addon upgrader if configured
+        	[ -n "${ADDON_IMAGE:-}" ] && chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh upgrade"
+        	/scripts/osc-log-level.sh "$action" "$LOG_LEVEL"
+        	upgrade
+        ;;
 	uninstall)
 		client_tools
 
@@ -234,6 +240,9 @@ main() {
 		#/osc-configs-script.sh "$action"
     		# Call addon uninstaller if configured
 		[ -n "${ADDON_IMAGE:-}" ] && /scripts/osc-kata-addons-install.sh uninstall
+
+        	# Call addon uninstaller if configured
+		[ -n "${ADDON_IMAGE:-}" ] && chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh uninstall"
 
 		uninstall
 		;;
