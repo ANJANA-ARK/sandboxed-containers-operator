@@ -8,7 +8,7 @@ RUN mkdir -p /scripts
 
 ADD osc-kata-install.sh osc-configs-script.sh osc-log-level.sh lib.sh osc-kata-install.sh osc-kata-addons-install.sh /scripts/
 
-RUN curl -sSL "https://github.com/opencontainers/umoci/releases/download/v0.4.9/umoci.linux.amd64" -o "/usr/local/bin/umoci" &&\
+RUN curl -sSL "https://github.com/opencontainers/umoci/releases/download/v0.4.7/umoci.amd64" -o "/usr/local/bin/umoci" &&\
     chmod +x "/usr/local/bin/umoci"
 
 CMD ["/scripts/osc-kata-install.sh"] 
