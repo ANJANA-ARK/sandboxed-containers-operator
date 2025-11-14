@@ -176,8 +176,6 @@ uninstall() {
         		echo "Skipping $pkg (not layered)"
    		 fi
 	done
-	#chroot /host /bin/bash -c "rpm-ostree uninstall kata-containers qemu-kvm-core virtiofsd"
-
 
 	# Wait again: rpm-ostree uninstall stages changes, requiring a reboot
 	wait_for_reboot_clear
