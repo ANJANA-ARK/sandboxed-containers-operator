@@ -4,17 +4,10 @@ metadata:
   name: kata-addon-artifacts
   namespace: openshift-sandboxed-containers-operator
 data:
-  addonImage: "quay.io/<username>/kata-se-artifacts:v1.0"
-  
-  # Required: Provider type (se, tdx, snp, etc.)
-  # This determines which config file to update: kata-<provider>/configuration.toml
-  provider: "se"
+  addonImage: "quay.io/openshift_sandboxed_containers/kata-se-artifacts:v1.0"
   
   # Optional: Path within the container image where kernel is located
   kernelPath: "/artifacts/kernel/vmlinuz"
   
   # Optional: Path within the container image where initrd is located  
   initrdPath: "/artifacts/initrd/kata-containers-initrd.img"
-  
-  # Define the OSC version
-  version: "v1.11"

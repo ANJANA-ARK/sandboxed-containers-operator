@@ -165,7 +165,19 @@ uninstall() {
 	set_status_uninstalling
 
 	# Uninstall extensions from the node
-	chroot /host /bin/bash -c "rpm-ostree uninstall $PACKAGES"
+
+	LAYERED=$(chroot /host rpm-ostree status | grep -A3 "LayeredPackages" | tr -d ' ,')
+
+	for pkg in $PACKAGES; do
+    		if echo "$LAYERED" | grep -q "$pkg"; then
+        		echo "Uninstalling $pkg..."
+        		chroot /host rpm-ostree uninstall "$pkg"
+   	 	else
+        		echo "Skipping $pkg (not layered)"
+   		 fi
+	done
+	#chroot /host /bin/bash -c "rpm-ostree uninstall kata-containers qemu-kvm-core virtiofsd"
+
 
 	# Wait again: rpm-ostree uninstall stages changes, requiring a reboot
 	wait_for_reboot_clear
@@ -212,13 +224,7 @@ main() {
 		install
 
 		# Install addon artifacts, if ADDON_IMAGE is present
-
-		if [ -n "${ADDON_IMAGE:-}" ]; then
-  		  echo "Running osc-kata-addons-install.sh inside the host chroot..."
-   		  mkdir -p /host/tmp/scripts
-    		  cp /scripts/* /host/tmp/scripts/
-    		  chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh install"
-		fi
+		[ -n "${ADDON_IMAGE:-}" ] && /scripts/osc-kata-addons-install.sh install
 
 		sleep infinity
 		;;
@@ -234,14 +240,13 @@ main() {
 		#/osc-log-level.sh "$action"
 
 		#/osc-configs-script.sh "$action"
-
-        	# Call addon uninstaller if configured
-		[ -n "${ADDON_IMAGE:-}" ] && chroot /host /bin/bash -c "/tmp/scripts/osc-kata-addons-install.sh uninstall"
+    # Call addon uninstaller if configured
+		[ -n "${ADDON_IMAGE:-}" ] && /scripts/osc-kata-addons-install.sh uninstall
 
 		uninstall
 		;;
 	*)
-        echo "Usage: $0 {install|upgrade|uninstall}"
+        echo "Usage: $0 {install|uninstall}"
 		exit 1
 		;;
 	esac
