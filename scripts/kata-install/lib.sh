@@ -30,6 +30,17 @@ function extract_container_image() {
 	$SKOPEO_CLI "docker://${image}" "oci:${dest_image}:${tag}" ||
 		error_exit "Failed to download the container image"
 
+	# Ensure umoci is installed
+    	local UMOCI_BIN="/usr/local/bin/umoci"
+    	if ! command -v umoci &>/dev/null; then
+        	echo "umoci not found, downloading..."
+       		curl -L -o "$UMOCI_BIN" "https://github.com/opencontainers/umoci/releases/download/v0.6.0/umoci.linux.s390x"
+        	chmod +x "$UMOCI_BIN"
+        	export PATH="/usr/local/bin:$PATH"
+    	fi
+    	echo "Using umoci at $(which umoci)"
+    	umoci --version
+
 	# Extract the container image using umoci into provided directory
 	umoci unpack --rootless --image "${dest_image}:${tag}" "${destination_path}" ||
 		error_exit "Failed to extract the container image"

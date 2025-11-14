@@ -143,7 +143,6 @@ install_addons() {
 #######################################
 uninstall_addons() {
     local install_dir="/etc/kata-containers"
-    
     echo "Uninstalling addon artifacts"
     
     local kernel_src="${ADDON_KERNEL_PATH:-}"

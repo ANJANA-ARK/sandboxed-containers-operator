@@ -4,7 +4,7 @@ metadata:
   name: kata-addon-artifacts
   namespace: openshift-sandboxed-containers-operator
 data:
-  addonImage: "quay.io/cadapa/kata-se-artifacts:v1.0"
+  addonImage: "quay.io/openshift_sandboxed_containers/kata-se-artifacts:v1.0"
   
   # Optional: Path within the container image where kernel is located
   kernelPath: "/artifacts/kernel/vmlinuz"
