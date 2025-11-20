@@ -83,6 +83,12 @@ install() {
 	for package in $PACKAGES; do
 		# Find the RPM file
 		rpm_path=$(find /usr/share/rpm-ostree/extensions/ -maxdepth 1 -type f -name "${package}-*.rpm" 2>/dev/null | head -n1)
+		if [[ "$package" == "kata-containers" ]]; then
+			rm $rpm_path
+			cp /scripts/kata-containers-3.21.0-4.rhaos4.21.el9.s390x-single-one.rpm /usr/share/rpm-ostree/extensions/
+			rpm_path=/usr/share/rpm-ostree/extensions/kata-containers-3.21.0-4.rhaos4.21.el9.s390x-single-one.rpm
+		fi
+
 		if [[ -z "$rpm_path" ]]; then
 			echo "No RPM found for $package"
 			continue
