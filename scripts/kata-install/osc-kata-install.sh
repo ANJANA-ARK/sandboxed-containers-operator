@@ -163,6 +163,12 @@ uninstall() {
 
 	# Set installation status to uninstalling
 	set_status_uninstalling
+    
+	# Override package list for s390x
+	ARCH=$(chroot /host uname -m)
+	if [ "$ARCH" = "s390x" ]; then
+		PACKAGES="capstone kata-containers libfdt libpng pixman qemu-img qemu-kvm-common qemu-kvm-core virtiofsd"
+	fi
 
 	# Uninstall extensions from the node
 	chroot /host /bin/bash -c "rpm-ostree uninstall $PACKAGES"
@@ -211,6 +217,9 @@ main() {
 
 		install
 
+		# Install addon artifacts, if ADDON_IMAGE is present
+		[ -n "${ADDON_IMAGE:-}" ] && /scripts/osc-kata-addons-install.sh install
+
 		sleep infinity
 		;;
 	uninstall)
@@ -219,6 +228,9 @@ main() {
 		#/osc-log-level.sh "$action"
 
 		#/osc-configs-script.sh "$action"
+
+		# Call addon uninstaller if configured
+		[ -n "${ADDON_IMAGE:-}" ] && /scripts/osc-kata-addons-install.sh uninstall
 
 		uninstall
 		;;
